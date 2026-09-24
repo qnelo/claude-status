@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Claude Status
+Comment=Límites de uso de tu cuenta de Claude
+Type=Application
+Exec=claude-status
+Terminal=false
+Categories=COSMIC;
+Keywords=COSMIC;Applet;Claude;
+Icon=chat-symbolic
+StartupNotify=true
+NoDisplay=true
+X-CosmicApplet=true
