@@ -9,7 +9,7 @@ run:
 check:
     cargo clippy --all-targets -- -W clippy::pedantic
 
-# Instala en ~/.local, sin sudo. Exec lleva la ruta absoluta: el panel no depende del PATH.
+# Installs into ~/.local, no sudo. Exec gets the absolute path so the panel does not depend on PATH.
 install:
     cargo build --release
     install -Dm0755 target/release/{{name}} {{bin-dst}}

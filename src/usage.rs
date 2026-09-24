@@ -1,4 +1,4 @@
-//! Respuesta de `GET https://api.anthropic.com/api/oauth/usage` y los textos que muestra el applet.
+//! Response of `GET https://api.anthropic.com/api/oauth/usage` and the texts the applet shows.
 
 use chrono::{DateTime, Datelike, NaiveDateTime, TimeDelta, Timelike, Utc};
 use serde::Deserialize;
@@ -13,12 +13,12 @@ pub struct Limit {
 pub struct UsageData {
     pub session: Limit,
     pub weekly_all: Limit,
-    /// Límites semanales por modelo (hoy solo Fable), con el nombre que entrega la API.
+    /// Per-model weekly limits (only Fable today), named as the API returns them.
     pub weekly_models: Vec<(String, Limit)>,
 }
 
-// Se lee solo `limits`: ya viene agrupado y trae el nombre del modelo. Las claves sueltas
-// (`five_hour`, `seven_day`, `nimbus_quill`...) repiten lo mismo con nombres internos.
+// Only `limits` is read: it comes already grouped and carries the model name. The loose keys
+// (`five_hour`, `seven_day`, `nimbus_quill`...) repeat the same data under internal names.
 #[derive(Deserialize)]
 struct Response {
     limits: Vec<ApiLimit>,
@@ -54,15 +54,15 @@ struct OAuth {
     access_token: String,
 }
 
-/// Token OAuth que dejó Claude Code. Solo lectura: renovarlo aquí rotaría el refresh token
-/// y cerraría la sesión de Claude Code.
+/// OAuth token left by Claude Code. Read-only: refreshing it here would rotate the refresh token
+/// and log Claude Code out.
 fn read_token() -> Result<String, String> {
     let path = std::env::home_dir()
         .ok_or("No encuentro el directorio HOME")?
         .join(".claude/.credentials.json");
     let raw = std::fs::read_to_string(&path)
         .map_err(|e| format!("No pude leer {}: {e}", path.display()))?;
-    // El error de serde no se propaga: puede citar trozos del archivo, incluido el token.
+    // The serde error is not propagated: it may quote parts of the file, token included.
     let creds: Credentials = serde_json::from_str(&raw)
         .map_err(|_| "Las credenciales de Claude Code tienen un formato inesperado".to_string())?;
     Ok(creds.oauth.access_token)
@@ -112,7 +112,7 @@ pub fn parse(json: &str) -> Result<UsageData, String> {
     })
 }
 
-/// "Se restablece en 4 h 12 min", redondeando hacia arriba al minuto.
+/// "Se restablece en 4 h 12 min", rounded up to the minute.
 pub fn resets_in(at: DateTime<Utc>, now: DateTime<Utc>) -> String {
     let mins = (at - now).num_seconds().max(0).unsigned_abs().div_ceil(60);
     match (mins / 60, mins % 60) {
@@ -122,10 +122,10 @@ pub fn resets_in(at: DateTime<Utc>, now: DateTime<Utc>) -> String {
     }
 }
 
-/// "Se restablece el sáb, 1:00 p.m.", con `local` ya en hora local.
+/// "Se restablece el sáb, 1:00 p.m.", with `local` already in local time.
 pub fn resets_on(local: NaiveDateTime) -> String {
     const DAYS: [&str; 7] = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
-    // Redondeo al minuto más cercano: la API da 12:59:59.8 y claude.ai muestra 1:00.
+    // Round to the nearest minute: the API returns 12:59:59.8 and claude.ai shows 1:00.
     let t = local + TimeDelta::seconds(30);
     let (pm, hour) = t.hour12();
     format!(
@@ -141,7 +141,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::float_cmp)] // enteros del JSON, exactos en f32
+    #[allow(clippy::float_cmp)] // JSON integers, exact in f32
     fn parses_real_response() {
         let u = parse(include_str!("sample.json")).unwrap();
         assert_eq!(u.session.pct, 8.0);
@@ -160,7 +160,7 @@ mod tests {
         assert_eq!(resets_in(at, at - TimeDelta::hours(2)), "Se restablece en 2 h");
         assert_eq!(resets_in(at, at + TimeDelta::minutes(5)), "Se restablece en 0 min");
 
-        // 15:59:59.8Z en Chile (UTC-3 en septiembre) son las 12:59:59.8 del sábado.
+        // 15:59:59.8Z in Chile (UTC-3 in September) is 12:59:59.8 on Saturday.
         let local: NaiveDateTime = "2026-09-26T12:59:59.8".parse().unwrap();
         assert_eq!(resets_on(local), "Se restablece el sáb, 1:00 p.m.");
         let morning: NaiveDateTime = "2026-09-28T09:05:00".parse().unwrap();

@@ -1,39 +1,41 @@
 # Claude Status
 
-Applet para el panel de [COSMIC](https://system76.com/cosmic) que muestra cuánto llevas usado de los límites de tu suscripción de Claude, sin abrir claude.ai.
+A [COSMIC](https://system76.com/cosmic) panel applet that shows how much of your Claude subscription limits you have used, without opening claude.ai.
 
-- **En el panel:** el porcentaje de la sesión actual (ventana de 5 horas). Se pone amarillo sobre 85 %. Cuando el límite semanal pasa de 90 %, aparece también como `S N%`.
-- **Al hacer clic:** un popup con la sesión actual y su cuenta regresiva, el límite semanal de todos los modelos y los límites semanales por modelo, cada uno con su fecha de reinicio.
+- **In the panel:** the current session usage (5-hour window). It turns yellow above 85 %. When the weekly limit goes past 90 %, it also shows up as `S N%`.
+- **On click:** a popup with the current session and its countdown, the weekly limit across all models, and the per-model weekly limits, each with its reset time.
 
-Se actualiza cada 5 minutos, o al instante con el botón **Actualizar** del popup.
+It refreshes every 5 minutes, or right away with the **Actualizar** button in the popup.
 
-## Requisitos
+The interface is in Spanish.
 
-- Escritorio COSMIC (Wayland).
-- [Claude Code](https://claude.com/claude-code) con la sesión iniciada con tu cuenta de Claude (Pro, Max, Team). El applet usa el token que Claude Code guarda en `~/.claude/.credentials.json`; con una API key no funciona.
-- Rust estable reciente (edition 2024) y [`just`](https://github.com/casey/just).
-- Las librerías de sistema que pide libcosmic. En Pop!_OS / Ubuntu:
+## Requirements
+
+- COSMIC desktop (Wayland).
+- [Claude Code](https://claude.com/claude-code) logged in with your Claude account (Pro, Max, Team). The applet uses the token Claude Code stores in `~/.claude/.credentials.json`; it does not work with an API key.
+- A recent stable Rust (edition 2024) and [`just`](https://github.com/casey/just).
+- The system libraries libcosmic needs. On Pop!_OS / Ubuntu:
 
   ```sh
   sudo apt install just pkg-config libxkbcommon-dev libfontconfig-dev libfreetype-dev libexpat1-dev
   ```
 
-## Instalación
+## Install
 
 ```sh
-git clone git@github.com:qnelo/claude-status.git
+git clone https://github.com/qnelo/claude-status.git
 cd claude-status
 just install
 ```
 
-Esto compila en modo release e instala, sin `sudo`:
+This builds in release mode and installs, without `sudo`:
 
-- el binario en `~/.local/bin/claude-status`
-- el `.desktop` en `~/.local/share/applications/io.github.qnelo.ClaudeStatus.desktop`
+- the binary to `~/.local/bin/claude-status`
+- the `.desktop` file to `~/.local/share/applications/io.github.qnelo.ClaudeStatus.desktop`
 
-Luego agrégalo al panel: **Configuración → Escritorio → Panel → Applets → Agregar applet → Claude Status**. Si no aparece en la lista, reinicia el panel (ver abajo).
+Then add it to the panel: **Settings → Desktop → Panel → Applets → Add applet → Claude Status**. If it is not listed, restart the panel (see below).
 
-## Actualizar
+## Update
 
 ```sh
 git pull
@@ -41,41 +43,41 @@ just install
 killall cosmic-panel
 ```
 
-`killall cosmic-panel` reinicia el panel y relanza todos los applets (tarda 5-10 s). No mates solo `claude-status`: el panel no lo vuelve a levantar.
+`killall cosmic-panel` restarts the panel and relaunches every applet (takes 5-10 s). Do not kill only `claude-status`: the panel will not bring it back.
 
-## Desinstalar
+## Uninstall
 
-Quítalo del panel desde la configuración y luego:
+Remove it from the panel in Settings, then:
 
 ```sh
 just uninstall
 ```
 
-## Problemas comunes
+## Troubleshooting
 
-El popup muestra el error abajo a la izquierda. Si falla una actualización, se mantienen los últimos datos buenos.
+The popup shows errors in its bottom-left corner. If a refresh fails, the last good data stays on screen.
 
-| Mensaje | Qué hacer |
+| Message | What to do |
 |---|---|
-| `No pude leer ~/.claude/.credentials.json` | Inicia sesión en Claude Code (`claude` y luego `/login`). |
-| `Token vencido: abre Claude Code para renovarlo` | Abre Claude Code una vez. El applet no renueva el token a propósito: hacerlo rotaría el refresh token y cerraría tu sesión de Claude Code. |
-| `La API pidió esperar` | Nada; reintenta solo en el próximo ciclo. |
-| El panel muestra `–` | Todavía no llega la primera respuesta, o falló. Abre el popup para ver el error. |
+| `No pude leer ~/.claude/.credentials.json` | Log in to Claude Code (`claude`, then `/login`). |
+| `Token vencido: abre Claude Code para renovarlo` | Open Claude Code once. The applet deliberately does not refresh the token: doing so would rotate the refresh token and log Claude Code out. |
+| `La API pidió esperar` | Nothing; it retries on the next cycle. |
+| The panel shows `–` | The first response has not arrived yet, or it failed. Open the popup to see the error. |
 
-## Cómo funciona
+## How it works
 
-Lee el token OAuth de Claude Code (solo lectura) y consulta `GET https://api.anthropic.com/api/oauth/usage`, el mismo endpoint que usa claude.ai para mostrar los límites. No es una API pública documentada: si Anthropic la cambia, el applet puede dejar de funcionar.
+It reads Claude Code's OAuth token (read-only) and calls `GET https://api.anthropic.com/api/oauth/usage`, the same endpoint claude.ai uses to show your limits. This is not a documented public API: if Anthropic changes it, the applet may stop working.
 
-El token no sale de tu máquina más allá de esa llamada, y los errores nunca muestran el contenido del archivo de credenciales.
+The token is only sent in that request, and error messages never show the contents of the credentials file.
 
-## Desarrollo
+## Development
 
 ```sh
-just run      # corre el applet fuera del panel
+just run      # run the applet outside the panel
 just check    # clippy pedantic
-cargo test    # parseo de la respuesta y textos de reinicio
+cargo test    # response parsing and reset texts
 ```
 
-- `src/main.rs`: el applet (vista del panel, popup, polling).
-- `src/usage.rs`: lectura del token, llamada a la API, parseo y formato de fechas.
-- `src/sample.json`: respuesta real de la API, usada en los tests.
+- `src/main.rs`: the applet (panel view, popup, polling).
+- `src/usage.rs`: token reading, API call, parsing and date formatting.
+- `src/sample.json`: a real API response, used by the tests.

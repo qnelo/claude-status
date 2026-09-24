@@ -13,7 +13,7 @@ mod usage;
 
 const ICON: &[u8] = include_bytes!("../res/icon.png");
 const POLL_EVERY: Duration = Duration::from_mins(5);
-/// Sobre estos porcentajes el panel avisa en amarillo; el semanal solo aparece pasado su umbral.
+/// Above these percentages the panel warns in yellow; the weekly one only shows past its threshold.
 const SESSION_WARN: f32 = 85.0;
 const WEEKLY_WARN: f32 = 90.0;
 
@@ -24,7 +24,7 @@ struct State {
     usage: Option<UsageData>,
     loading: bool,
     error: Option<String>,
-    /// Reloj del modelo: la cuenta regresiva se calcula contra este instante, no en la vista.
+    /// Model clock: the countdown is computed against this instant, not in the view.
     now: DateTime<Utc>,
 }
 
@@ -34,7 +34,7 @@ enum Message {
     PopupClosed(Id),
     FetchUsage,
     UsageReceived(Result<UsageData, String>),
-    /// Avanza el reloj del modelo para la cuenta regresiva, sin volver a pedir datos.
+    /// Advances the model clock for the countdown without fetching data again.
     Tick,
 }
 
@@ -93,7 +93,7 @@ impl cosmic::Application for State {
             Message::UsageReceived(result) => {
                 self.loading = false;
                 self.now = Utc::now();
-                // Si falla, se conservan los últimos datos buenos y se muestra el error.
+                // On failure, the last good data is kept and the error is shown.
                 match result {
                     Ok(usage) => {
                         self.usage = Some(usage);
@@ -132,7 +132,7 @@ impl cosmic::Application for State {
             None => content = content.push(applet.text("–")),
         }
 
-        // Sin autosize la ventana del applet mide lo que el icono y el texto queda recortado.
+        // Without autosize the applet window is only as wide as the icon and the text gets clipped.
         let button = widget::button::custom(content)
             .padding([minor, major])
             .class(cosmic::theme::Button::AppletIcon)
@@ -191,7 +191,7 @@ fn weekly_reset(at: DateTime<Utc>) -> String {
     usage::resets_on(at.with_timezone(&Local).naive_local())
 }
 
-/// Barra con "N% usado" a la derecha y el texto de reinicio debajo.
+/// Bar with "N% usado" on the right and the reset text below.
 fn limit_view<'a>(limit: &Limit, reset_text: impl Fn(DateTime<Utc>) -> String) -> Element<'a, Message> {
     let bar = widget::Row::new()
         .push(widget::determinate_linear(limit.pct / 100.0).width(Length::Fill))
