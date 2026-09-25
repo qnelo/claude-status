@@ -2,16 +2,28 @@ use cosmic::app::{Core, Task};
 use cosmic::iced::platform_specific::shell::wayland::commands::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
 use cosmic::iced::{time, Alignment, Length, Subscription};
+use cosmic::widget::frames::{self, Frames};
 use cosmic::widget::{self, space, text};
 use cosmic::Element;
 
 use chrono::{DateTime, Local, Utc};
+use image::codecs::gif::GifDecoder;
+use image::imageops::FilterType;
+use image::{AnimationDecoder, DynamicImage, Frame};
+use std::io::Cursor;
+use std::sync::LazyLock;
 use std::time::Duration;
 use usage::{Limit, UsageData};
 
 mod usage;
 
-const ICON: &[u8] = include_bytes!("../res/icon.png");
+const ICON: &[u8] = include_bytes!("../res/icon.gif");
+/// Frame height: the panel icon is at most ~32 px logical, so 64 covers 2x scaling; at full size the 36 frames take ~20 MB.
+const ICON_PX: u32 = 64;
+static ICON_FRAMES: LazyLock<Frames> = LazyLock::new(|| {
+    let gif = GifDecoder::new(Cursor::new(ICON)).expect("res/icon.gif is a GIF");
+    Frames::from_decoder(Downscaled(gif)).expect("res/icon.gif decodes")
+});
 const POLL_EVERY: Duration = Duration::from_mins(5);
 /// Above these percentages the panel warns in yellow; the weekly one only shows past its threshold.
 const SESSION_WARN: f32 = 85.0;
@@ -109,8 +121,9 @@ impl cosmic::Application for State {
     fn view(&self) -> Element<'_, Message> {
         let applet = &self.core.applet;
         let (major, minor) = applet.suggested_padding(true);
-        let icon = widget::icon(widget::icon::from_raster_bytes(ICON))
-            .size(applet.suggested_size(true).0);
+        // Only the height is fixed: the GIF is wider than tall and the width follows its aspect ratio.
+        let icon = frames::animated_image(&ICON_FRAMES)
+            .height(Length::Fixed(applet.suggested_size(true).1.into()));
         let mut content = widget::Row::new().push(icon).spacing(4).align_y(Alignment::Center);
 
         match &self.usage {
@@ -184,6 +197,21 @@ impl cosmic::Application for State {
 
     fn style(&self) -> Option<cosmic::iced::theme::Style> {
         Some(cosmic::applet::style())
+    }
+}
+
+/// Downscales each frame to `ICON_PX` tall as it is decoded, so only the small copies stay in memory.
+struct Downscaled<D>(D);
+
+impl<'a, D: AnimationDecoder<'a>> AnimationDecoder<'a> for Downscaled<D> {
+    fn into_frames(self) -> image::Frames<'a> {
+        image::Frames::new(Box::new(self.0.into_frames().map(|frame| {
+            frame.map(|f| {
+                let delay = f.delay();
+                let small = DynamicImage::from(f.into_buffer()).resize(u32::MAX, ICON_PX, FilterType::Triangle);
+                Frame::from_parts(small.into_rgba8(), 0, 0, delay)
+            })
+        })))
     }
 }
 
